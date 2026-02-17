@@ -40,3 +40,5 @@ next-env.d.ts
 .rules
 .claude
 !.doc/claude/*
+google-cloud-sdk/*
+google-cloud-sdk/
