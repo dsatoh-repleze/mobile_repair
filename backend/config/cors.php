@@ -8,7 +8,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => ['admin/*', 'staff/*', 'member/*', 'shop/*', 'receipt/*', 'health'],
 
     'allowed_methods' => ['*'],
 
