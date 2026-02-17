@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\RedemptionLog;
 use App\Models\Staff;
 use App\Models\Store;
+use App\Models\StoreProductStock;
 use App\Models\Ticket;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -111,22 +112,31 @@ class DatabaseSeeder extends Seeder
 
         // Create Products (スマホアクセサリー)
         $products = [
-            ['name' => 'iPhone 15 ケース クリア', 'barcode' => '4901234567001', 'description' => '透明度の高いクリアケース。傷から本体を守ります。', 'category' => 'ケース', 'price' => 1980, 'stock_quantity' => 100, 'low_stock_threshold' => 10, 'store_id' => $store->id, 'is_active' => true, 'is_ec_visible' => true],
-            ['name' => 'iPhone 15 Pro 手帳型ケース', 'barcode' => '4901234567002', 'description' => 'カード収納付き手帳型ケース。ビジネスシーンにも最適。', 'category' => 'ケース', 'price' => 2980, 'stock_quantity' => 50, 'low_stock_threshold' => 5, 'store_id' => $store->id, 'is_active' => true, 'is_ec_visible' => true],
-            ['name' => 'USB-C 充電ケーブル 1m', 'barcode' => '4901234567003', 'description' => '高耐久USB-C to USB-C充電ケーブル。急速充電対応。', 'category' => '充電器', 'price' => 980, 'stock_quantity' => 200, 'low_stock_threshold' => 20, 'store_id' => $store->id, 'is_active' => true, 'is_ec_visible' => true],
-            ['name' => 'USB-C 急速充電器 20W', 'barcode' => '4901234567004', 'description' => 'コンパクトな20W急速充電器。PSE認証取得。', 'category' => '充電器', 'price' => 2480, 'stock_quantity' => 80, 'low_stock_threshold' => 8, 'store_id' => $store->id, 'is_active' => true, 'is_ec_visible' => true],
-            ['name' => 'ワイヤレス充電パッド', 'barcode' => '4901234567005', 'description' => 'Qi対応ワイヤレス充電パッド。15W急速充電対応。', 'category' => '充電器', 'price' => 3480, 'stock_quantity' => 40, 'low_stock_threshold' => 5, 'store_id' => $store->id, 'is_active' => true, 'is_ec_visible' => true],
-            ['name' => 'ガラスフィルム iPhone 15', 'barcode' => '4901234567006', 'description' => '9H硬度の強化ガラスフィルム。指紋防止加工済み。', 'category' => '保護フィルム', 'price' => 1280, 'stock_quantity' => 150, 'low_stock_threshold' => 15, 'store_id' => $store->id, 'is_active' => true, 'is_ec_visible' => true],
-            ['name' => 'AirPods Pro ケース', 'barcode' => '4901234567007', 'description' => 'AirPods Pro用シリコンケース。カラビナ付き。', 'category' => 'ケース', 'price' => 1580, 'stock_quantity' => 60, 'low_stock_threshold' => 6, 'store_id' => $store->id, 'is_active' => true, 'is_ec_visible' => true],
-            ['name' => 'スマホスタンド 折りたたみ式', 'barcode' => '4901234567008', 'description' => 'アルミ製折りたたみスタンド。角度調整可能。', 'category' => 'アクセサリー', 'price' => 1480, 'stock_quantity' => 70, 'low_stock_threshold' => 7, 'store_id' => $store->id, 'is_active' => true, 'is_ec_visible' => true],
-            ['name' => 'Bluetoothイヤホン', 'barcode' => '4901234567009', 'description' => 'ワイヤレスイヤホン。ノイズキャンセリング搭載。', 'category' => 'オーディオ', 'price' => 4980, 'stock_quantity' => 30, 'low_stock_threshold' => 3, 'store_id' => $store->id, 'is_active' => true, 'is_ec_visible' => true],
-            ['name' => 'MagSafe対応カーマウント', 'barcode' => '4901234567010', 'description' => 'MagSafe対応車載ホルダー。ワンタッチ装着。', 'category' => 'アクセサリー', 'price' => 3980, 'stock_quantity' => 25, 'low_stock_threshold' => 3, 'store_id' => $store->id, 'is_active' => true, 'is_ec_visible' => true],
+            ['name' => 'iPhone 15 ケース クリア', 'barcode' => '4901234567001', 'description' => '透明度の高いクリアケース。傷から本体を守ります。', 'category' => 'ケース', 'price' => 1980, 'is_ec_visible' => true, 'stock_quantity' => 100, 'low_stock_threshold' => 10],
+            ['name' => 'iPhone 15 Pro 手帳型ケース', 'barcode' => '4901234567002', 'description' => 'カード収納付き手帳型ケース。ビジネスシーンにも最適。', 'category' => 'ケース', 'price' => 2980, 'is_ec_visible' => true, 'stock_quantity' => 50, 'low_stock_threshold' => 5],
+            ['name' => 'USB-C 充電ケーブル 1m', 'barcode' => '4901234567003', 'description' => '高耐久USB-C to USB-C充電ケーブル。急速充電対応。', 'category' => '充電器', 'price' => 980, 'is_ec_visible' => true, 'stock_quantity' => 200, 'low_stock_threshold' => 20],
+            ['name' => 'USB-C 急速充電器 20W', 'barcode' => '4901234567004', 'description' => 'コンパクトな20W急速充電器。PSE認証取得。', 'category' => '充電器', 'price' => 2480, 'is_ec_visible' => true, 'stock_quantity' => 80, 'low_stock_threshold' => 8],
+            ['name' => 'ワイヤレス充電パッド', 'barcode' => '4901234567005', 'description' => 'Qi対応ワイヤレス充電パッド。15W急速充電対応。', 'category' => '充電器', 'price' => 3480, 'is_ec_visible' => true, 'stock_quantity' => 40, 'low_stock_threshold' => 5],
+            ['name' => 'ガラスフィルム iPhone 15', 'barcode' => '4901234567006', 'description' => '9H硬度の強化ガラスフィルム。指紋防止加工済み。', 'category' => '保護フィルム', 'price' => 1280, 'is_ec_visible' => true, 'stock_quantity' => 150, 'low_stock_threshold' => 15],
+            ['name' => 'AirPods Pro ケース', 'barcode' => '4901234567007', 'description' => 'AirPods Pro用シリコンケース。カラビナ付き。', 'category' => 'ケース', 'price' => 1580, 'is_ec_visible' => true, 'stock_quantity' => 60, 'low_stock_threshold' => 6],
+            ['name' => 'スマホスタンド 折りたたみ式', 'barcode' => '4901234567008', 'description' => 'アルミ製折りたたみスタンド。角度調整可能。', 'category' => 'アクセサリー', 'price' => 1480, 'is_ec_visible' => true, 'stock_quantity' => 70, 'low_stock_threshold' => 7],
+            ['name' => 'Bluetoothイヤホン', 'barcode' => '4901234567009', 'description' => 'ワイヤレスイヤホン。ノイズキャンセリング搭載。', 'category' => 'オーディオ', 'price' => 4980, 'is_ec_visible' => true, 'stock_quantity' => 30, 'low_stock_threshold' => 3],
+            ['name' => 'MagSafe対応カーマウント', 'barcode' => '4901234567010', 'description' => 'MagSafe対応車載ホルダー。ワンタッチ装着。', 'category' => 'アクセサリー', 'price' => 3980, 'is_ec_visible' => true, 'stock_quantity' => 25, 'low_stock_threshold' => 3],
         ];
 
         foreach ($products as $productData) {
-            Product::firstOrCreate(
+            $stockQuantity = $productData['stock_quantity'];
+            $lowStockThreshold = $productData['low_stock_threshold'];
+            unset($productData['stock_quantity'], $productData['low_stock_threshold']);
+
+            $product = Product::firstOrCreate(
                 ['barcode' => $productData['barcode']],
                 $productData
+            );
+
+            StoreProductStock::firstOrCreate(
+                ['product_id' => $product->id, 'store_id' => $store->id],
+                ['stock_quantity' => $stockQuantity, 'low_stock_threshold' => $lowStockThreshold, 'is_active' => true]
             );
         }
     }
