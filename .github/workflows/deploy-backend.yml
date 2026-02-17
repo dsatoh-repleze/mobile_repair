@@ -126,3 +126,23 @@ jobs:
               --command="php" \
               --args="artisan,migrate,--force"
           gcloud run jobs execute mobile-repair-migrate-job --region=${{ env.REGION }} --wait
+
+      - name: Run seed
+        run: |
+          gcloud run jobs update mobile-repair-seed-job \
+            --image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --set-cloudsql-instances=${{ secrets.CLOUD_SQL_CONNECTION_NAME }} \
+            --set-env-vars=DB_CONNECTION=mysql,DB_SOCKET=/cloudsql/${{ secrets.CLOUD_SQL_CONNECTION_NAME }} \
+            --set-secrets=DB_DATABASE=db-name:latest,DB_USERNAME=db-user:latest,DB_PASSWORD=db-password:latest,APP_KEY=app-key:latest,JWT_SECRET=jwt-secret:latest \
+            --command="php" \
+            --args="artisan,db:seed,--force" \
+            || gcloud run jobs create mobile-repair-seed-job \
+              --image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+              --region=${{ env.REGION }} \
+              --set-cloudsql-instances=${{ secrets.CLOUD_SQL_CONNECTION_NAME }} \
+              --set-env-vars=DB_CONNECTION=mysql,DB_SOCKET=/cloudsql/${{ secrets.CLOUD_SQL_CONNECTION_NAME }} \
+              --set-secrets=DB_DATABASE=db-name:latest,DB_USERNAME=db-user:latest,DB_PASSWORD=db-password:latest,APP_KEY=app-key:latest,JWT_SECRET=jwt-secret:latest \
+              --command="php" \
+              --args="artisan,db:seed,--force"
+          gcloud run jobs execute mobile-repair-seed-job --region=${{ env.REGION }} --wait
