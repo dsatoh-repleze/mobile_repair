@@ -134,9 +134,16 @@ class DatabaseSeeder extends Seeder
                 $productData
             );
 
+            // 東京本店の在庫
             StoreProductStock::firstOrCreate(
                 ['product_id' => $product->id, 'store_id' => $store->id],
                 ['stock_quantity' => $stockQuantity, 'low_stock_threshold' => $lowStockThreshold, 'is_active' => true]
+            );
+
+            // 渋谷店の在庫（東京本店の半分）
+            StoreProductStock::firstOrCreate(
+                ['product_id' => $product->id, 'store_id' => $store2->id],
+                ['stock_quantity' => (int) ceil($stockQuantity / 2), 'low_stock_threshold' => $lowStockThreshold, 'is_active' => true]
             );
         }
     }

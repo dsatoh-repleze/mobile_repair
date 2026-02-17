@@ -5,14 +5,35 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Member;
 use App\Models\RedemptionLog;
+use App\Models\Store;
 use App\Models\Ticket;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class StaffRedemptionController extends Controller
 {
+    /**
+     * 現在のユーザーと店舗IDを取得（admin/staff両対応）
+     */
+    private function getCurrentUserAndStore(?Request $request = null): array
+    {
+        $admin = auth('admin')->user();
+        if ($admin) {
+            $storeId = $request?->header('X-Store-Id');
+            if ($storeId) {
+                $store = Store::find($storeId);
+            }
+            if (!isset($store) || !$store) {
+                $store = Store::first();
+            }
+            return ['user' => $admin, 'store_id' => $store?->id, 'is_admin' => true];
+        }
+
+        $staff = auth('staff')->user();
+        return ['user' => $staff, 'store_id' => $staff?->store_id, 'is_admin' => false];
+    }
+
     /**
      * Search member by email or ID
      */
@@ -82,7 +103,7 @@ class StaffRedemptionController extends Controller
      */
     public function redeemForMember(Request $request, int $ticketId): JsonResponse
     {
-        $staff = Auth::guard('staff')->user();
+        ['user' => $user, 'store_id' => $storeId] = $this->getCurrentUserAndStore($request);
 
         $request->validate([
             'member_id' => 'required|integer|exists:members,id',
@@ -131,8 +152,8 @@ class StaffRedemptionController extends Controller
                 $lastLog = RedemptionLog::create([
                     'ticket_id' => $ticket->id,
                     'member_id' => $memberId,
-                    'staff_id' => $staff->id,
-                    'store_id' => $staff->store_id,
+                    'staff_id' => $user->id,
+                    'store_id' => $storeId,
                     'redeemed_at' => $now,
                 ]);
             }
@@ -171,11 +192,11 @@ class StaffRedemptionController extends Controller
     /**
      * Get today's redemption history for staff's store
      */
-    public function todayHistory(): JsonResponse
+    public function todayHistory(Request $request): JsonResponse
     {
-        $staff = Auth::guard('staff')->user();
+        ['store_id' => $storeId] = $this->getCurrentUserAndStore($request);
 
-        $logs = RedemptionLog::where('store_id', $staff->store_id)
+        $logs = RedemptionLog::where('store_id', $storeId)
             ->whereDate('redeemed_at', today())
             ->with(['member', 'ticket', 'staff'])
             ->orderBy('redeemed_at', 'desc')
