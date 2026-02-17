@@ -1,0 +1,127 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/*'
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+
+env:
+  # GitHubリポジトリ変数 GCP_PROJECT_ID に mobile-repair-487616 を設定してください
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: asia-northeast1
+  SERVICE_NAME: mobile-repair-backend
+  REGISTRY: asia-northeast1-docker.pkg.dev
+  REPOSITORY: backend-repo
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo, pdo_mysql, redis
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Copy environment file
+        run: cp .env.example .env
+
+      - name: Generate application key
+        run: php artisan key:generate
+
+      - name: Run tests
+        run: php artisan test
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGISTRY }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest \
+            ./backend
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          flags: |
+            --add-cloudsql-instances=${{ secrets.CLOUD_SQL_CONNECTION_NAME }}
+            --set-env-vars=DB_CONNECTION=mysql
+            --set-env-vars=DB_SOCKET=/cloudsql/${{ secrets.CLOUD_SQL_CONNECTION_NAME }}
+            --set-secrets=DB_DATABASE=db-name:latest,DB_USERNAME=db-user:latest,DB_PASSWORD=db-password:latest,APP_KEY=app-key:latest,JWT_SECRET=jwt-secret:latest
+
+      - name: Run migrations
+        run: |
+          gcloud run jobs update mobile-repair-migrate-job \
+            --image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --set-cloudsql-instances=${{ secrets.CLOUD_SQL_CONNECTION_NAME }} \
+            --set-env-vars=DB_CONNECTION=mysql,DB_SOCKET=/cloudsql/${{ secrets.CLOUD_SQL_CONNECTION_NAME }} \
+            --set-secrets=DB_DATABASE=db-name:latest,DB_USERNAME=db-user:latest,DB_PASSWORD=db-password:latest,APP_KEY=app-key:latest,JWT_SECRET=jwt-secret:latest \
+            --command="php" \
+            --args="artisan,migrate,--force" \
+            || gcloud run jobs create mobile-repair-migrate-job \
+              --image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+              --region=${{ env.REGION }} \
+              --set-cloudsql-instances=${{ secrets.CLOUD_SQL_CONNECTION_NAME }} \
+              --set-env-vars=DB_CONNECTION=mysql,DB_SOCKET=/cloudsql/${{ secrets.CLOUD_SQL_CONNECTION_NAME }} \
+              --set-secrets=DB_DATABASE=db-name:latest,DB_USERNAME=db-user:latest,DB_PASSWORD=db-password:latest,APP_KEY=app-key:latest,JWT_SECRET=jwt-secret:latest \
+              --command="php" \
+              --args="artisan,migrate,--force"
+          gcloud run jobs execute mobile-repair-migrate-job --region=${{ env.REGION }} --wait
