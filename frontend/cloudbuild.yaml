@@ -1,0 +1,11 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_API_URL=https://mobile-repair-backend-rkgbjfq3ga-an.a.run.app/api'
+      - '-t'
+      - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/frontend-repo/mobile-repair-frontend:latest'
+      - '.'
+images:
+  - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/frontend-repo/mobile-repair-frontend:latest'
